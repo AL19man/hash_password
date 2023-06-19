@@ -67,10 +67,6 @@ bool validate_passphrase(const string& username, std::string input) {
     
       UserAccount& account = accounts[username];
 
-      if (account.locked ==true &&  system_clock::now() < account.unlockTime) {
-                cout << "Account locked. Please try again later." << endl;
-                return false;
-      }
 	  
 	   if (system_clock::now() < account.unlockTime  ) {  // (account.password1 == password1
 
@@ -86,14 +82,15 @@ bool validate_passphrase(const string& username, std::string input) {
 
 
     // Define the passwords
-    std::string password1 = "c810e76f2125db71bfbdd7e29ce902f37f5b2250c48c16d241bd46c70aed1a91";
-    std::string password2 = "c810e76f2125db71bfbdd7e29ce902f37f5b2250c48c16d241bd46c70aed1a91";
-    std::string password3 = "c810e76f2125db71bfbdd7e29ce902f37f5b2250c48c16d241bd46c70aed1a91";
-
+    std::string password1 = "pass1";
+    std::string password2 = "pass2";
+    std::string password3 = "pass3";
+    int pass=0;
     // Tokenize the input string into words
     std::string delimiter = " ";
     size_t startPos = 0;
-    size_t endPos = input.find(delimiter);
+     size_t endPos = input.find(delimiter);
+   // size_t endPos = input.find(delimiter);
 
  if (account.failedAttempts >= maxFailedAttempts) {
                     account.locked = true;
@@ -104,30 +101,47 @@ bool validate_passphrase(const string& username, std::string input) {
                    cout << "Account locked. Please try again after "<<  manager.lockoutDuration<< " seconds." << endl;
  }
 
+
+ 
     while (endPos != std::string::npos) {
         // Extract a word from the input string
-        std::string word =computeSHA256(input.substr(startPos, endPos - startPos));
+	
+        std::string word =input.substr(startPos, endPos - startPos);
+
+	 if(pass=3 ||  account.locked != true){
+        account.failedAttempts = 0;
+        return false;
+        }
+
+       if (account.locked ==true ||  system_clock::now() < account.unlockTime) {
+        cout << "Account locked. Please try again later." << endl;
+        return false;
+      }
+
 
         // Compare the word with each password
         if (word == password1 && startPos == 0) {
-            std::cout << "Password 1 is correct and in the first position." << std::endl;
+        	pass=pass+1;
+	    	std::cout << "Password 1 is correct and in the first position." << std::endl;
         }
         if (word == password2 && startPos == input.find(password1) + password1.length() + delimiter.length()) {
-            std::cout << "Password 2 is correct and in the expected position." << std::endl;
+            	pass=pass+1;
+		std::cout << "Password 2 is correct and in the expected position." << std::endl;
         }
         if (word == password3 && startPos == input.find(password2) + password2.length() + delimiter.length()) {
-            std::cout << "Password 3 is correct and in the expected position." << std::endl;
+            	pass=pass+1;
+		std::cout << "Password 3 is correct and in the expected position." << std::endl;
         }
-
         // Move to the next word
         startPos = endPos + delimiter.length();
         endPos = input.find(delimiter, startPos);
     }
 
+
   
   // Compare the last word in the input string
  
-    std::string lastWord = computeSHA256(input.substr(startPos));
+    std::string lastWord = input.substr(startPos);
     if (lastWord == password3 && startPos == input.find(password2) + password2.length() + delimiter.length()) {
         std::cout << "Password 3 is correct and in the expected position." << std::endl;
     }
@@ -139,6 +153,27 @@ bool validate_passphrase(const string& username, std::string input) {
 }
 
 
+//SHA256
+std::string computeSHA256(const std::string& password){
+
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256_CTX sha256;
+    SHA256_Init(&sha256);
+    SHA256_Update(&sha256, password.c_str(), password.length());
+    SHA256_Final(hash, &sha256);
+
+
+    std::string hashString;
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++)
+    {
+        char hex[3];
+        sprintf(hex, "%02x", hash[i]);
+        hashString += hex;
+    }
+
+    return hashString;
+}
+//SHA256
 
     // Validate user credentials
     bool validateCredentials(const string& username, const string& password) {
@@ -205,6 +240,7 @@ void  handleSIGTRAP(int signal) {
 }
 //anti-d
 //SHA256
+/*
 std::string computeSHA256(const std::string& password){ 
 	
     unsigned char hash[SHA256_DIGEST_LENGTH];
@@ -225,7 +261,7 @@ std::string computeSHA256(const std::string& password){
     return hashString;
 }
 //SHA256
-
+*/
 int main()
 {
 
@@ -283,4 +319,4 @@ std::cout << "Enter a string of words: ";
     return 0;
 }
 
-//Still under construction but working 
+
