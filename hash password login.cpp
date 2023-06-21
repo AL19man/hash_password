@@ -2,6 +2,7 @@
 #include <string>
 #include <cstring>
 #include <openssl/sha.h>
+#include <openssl/md5.h>
 
 
 #include <sys/prctl.h>
@@ -30,7 +31,7 @@ struct UserAccount {
     string password1="c810e76f2125db71bfbdd7e29ce902f37f5b2250c48c16d241bd46c70aed1a91";
     string password2="c810e76f2125db71bfbdd7e29ce902f37f5b2250c48c16d241bd46c70aed1a91";
     string password3="c810e76f2125db71bfbdd7e29ce902f37f5b2250c48c16d241bd46c70aed1a91";
-    string password4;
+    string password;
 
 
     int failedAttempts;
@@ -44,28 +45,45 @@ private:
     unordered_map<string, UserAccount> accounts;
     int maxFailedAttempts=3;
     int lockoutDuration;
-    
+    std::string password1 = "c810e76f2125db71bfbdd7e29ce902f37f5b2250c48c16d241bd46c70aed1a91";
+    std::string password2 = "c810e76f2125db71bfbdd7e29ce902f37f5b2250c48c16d241bd46c70aed1a91";
+    std::string password3 = "c810e76f2125db71bfbdd7e29ce902f37f5b2250c48c16d241bd46c70aed1a91";
+
 
 public:
     // AccountManager(int maxAttempts, int duration) : maxFailedAttempts(maxAttempts), lockoutDuration(duration) {}
 
     // Register a new user account
-    void registerAccount(const string& username, const string& password) {
+    void registerAccount(const string& username, const string& word, bool locked) {
         UserAccount account;
-        account.username = "user1";
-        account.password1 = password;
+        account.username = username;
+        account.password = word;
+        account.failedAttempts = 0;
+        account.locked = locked;
+        accounts[username] = account;
+    }
+
+    // delete user account
+    void deleteAccount(const string& username, const string& word, bool locked ) {
+        UserAccount account;
+        account.username.clear();
+        account.password.clear();
         account.failedAttempts = 0;
         account.locked = false;
         accounts[username] = account;
     }
 
-
-bool validate_passphrase(const string& username,std::string input) {
+bool validate_passphrase(const string& username,std::string line_pass,bool random_number, int start_random_sec , int end_random_sec, int not_random,std::string hash_chose) {
     
 
       AccountManager manager; 
-    
       UserAccount& account = accounts[username];
+      std::string input =line_sha256(line_pass,hash_chose);
+      // Tokenize the input string into words
+      std::string delimiter = " ";
+      size_t startPos = 0;
+      size_t endPos = input.find(delimiter);
+
 
       if (account.locked==true  && system_clock::now() < account.unlockTime) {
                 cout << "Account locked. Please try again later." << endl;
@@ -81,24 +99,22 @@ bool validate_passphrase(const string& username,std::string input) {
                 //cout << "Incorrect password." << endl;
 	  
 
+//verify random 
+	if(rundom_number==true && account.failedAttempts >= maxFailedAttempts)
+	{
+		
+		 manager.lockoutDuration=rand_number(start_random_sec ,end_random_sec);
+	}
+	if(rundom_number==false && account.failedAttempts >= maxFailedAttempts)
+	{
+		
+		 manager.lockoutDuration=rand_number(not_random ,not_random);
+	}
+//verify random 
 
-
-
-    // Define the passwords
-    std::string password1 = "password1";
-    std::string password2 = "password2";
-    std::string password3 = "password3";
-
-    // Tokenize the input string into words
-    std::string delimiter = " ";
-    size_t startPos = 0;
-    size_t endPos = input.find(delimiter);
 
  if (account.failedAttempts >= maxFailedAttempts) {
-                    account.locked = true;
-		 // AccountManager manager (2,rand_number());
-                  // manager.maxFailedAttempts=2;
-		   manager.lockoutDuration=rand_number();
+           account.locked = true;
 		   account.unlockTime = system_clock::now() + seconds(lockoutDuration);
                    cout << "Account locked. Please try again after "<<endl; //<< lockoutDuration << " seconds." << endl;
       }else{
@@ -111,7 +127,7 @@ bool validate_passphrase(const string& username,std::string input) {
         if (word == password1 && startPos == 0) {
             std::cout << "Password 1 is correct and in the first position." << std::endl;
         }
-        if (word == password2 && startPos == input.find(password1) + password1.length() + delimiter.length()) {
+        if (word == password2  && startPos == input.find(password1) + password1.length() + delimiter.length()) {
             std::cout << "Password 2 is correct and in the expected position." << std::endl;
         }
         if (word == password3 && startPos == input.find(password2) + password2.length() + delimiter.length()) {
@@ -126,7 +142,7 @@ bool validate_passphrase(const string& username,std::string input) {
   
   // Compare the last word in the input string
     std::string lastWord = input.substr(startPos);
-    if (lastWord == password3 && startPos == input.find(password2) + password2.length() + delimiter.length()) {
+    if (lastWord ==  password3 && startPos == input.find(password2) + password2.length() + delimiter.length()) {
         std::cout << "Password 3 is correct and in the expected position." << std::endl;
     }
 
@@ -137,26 +153,103 @@ bool validate_passphrase(const string& username,std::string input) {
 
 
 
-    // Validate user credentials
-    bool validateCredentials(const string& username, const string& password) {
+//string to SHA1
+std::string computeSHA(const std::string& password) {
+    unsigned char hash[SHA_DIGEST_LENGTH];
+    SHA_CTX sha1;
+    SHA1_Init(&sha1);
+    SHA1_Update(&sha1, password.c_str(), password.length());
+    SHA1_Final(hash, &sha1);
+
+    std::string hashString;
+    char hex[3];
+    for (int i = 0; i < SHA_DIGEST_LENGTH; ++i) {
+        sprintf(hex, "%02x", hash[i]);
+        hashString += hex;
+    }
+
+    return hashString;
+}
+//string to SHA1
+//string to MD5
+std::string computeMD5(const std::string& password) {
+unsigned char hash[MD5_DIGEST_LENGTH];
+    MD5_CTX md5;
+    MD5_Init(&md5);
+    MD5_Update(&md5, password.c_str(), password.length());
+    MD5_Final(hash, &md5);
+
+    std::string hashString;
+    char hex[3];
+    for (int i = 0; i < MD5_DIGEST_LENGTH; ++i) {
+        sprintf(hex, "%02x", hash[i]);
+        hashString += hex;
+    }
+
+    return hashString;
+}
+//string to MD5
+//string to SHA256 
+std::string computeSHA256(const std::string& password){
+
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256_CTX sha256;
+    SHA256_Init(&sha256);
+    SHA256_Update(&sha256, password.c_str(), password.length());
+    SHA256_Final(hash, &sha256);
 
 
+    std::string hashString;
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++)
+    {
+        char hex[3];
+        sprintf(hex, "%02x", hash[i]);
+        hashString += hex;
+    }
+
+    return hashString;
+}
+//string to SHA256
+
+//get password sentance  change sentance to hash 
+std::string line_sha256(std::string password, std::string hash_chose){
 
 
-     
+	std::string hashedPassword;
+    std::string word;
+    std::string::size_type start = 0;
+    std::string::size_type end = password.find(' ');
 
+    while (end != std::string::npos) {
+        word = password.substr(start, end - start);
+		if (hash_chose=="sha256"){hashedPassword +=computeSHA256(word)+" ";}
+		if (hash_chose=="md5"){hashedPassword +=computeMD5(word)+" ";}
+		if (hash_chose=="sha1"){hashedPassword +=computeSHA(word)+" ";}
+		
+        start = end + 1;
+        end = password.find(' ', start);
+    }
 
-                return false;
-      
-	    }
+    if (start != password.length()) {
+        word = password.substr(start);
+        if (hash_chose=="sha256"){hashedPassword +=computeSHA256(word)+" ";}
+		if (hash_chose=="md5"){hashedPassword +=computeMD5(word)+" ";}
+		if (hash_chose=="sha1"){hashedPassword +=computeSHA(word)+" ";}
+    }
 
+    std::cout << "Hashed password: " << hashedPassword << std::endl;
+	
+	
+	
+	return hashedPassword;
+}
 
-      //rundom number between 30 -60 secund to anti-bruteforce
-int rand_number() {
+//rundom number between start_random , end_random second to anti-bruteforce
+int rand_number(int start_random_sec, int end_random_sec) {
     std::random_device rd;  // Obtain a random seed from the hardware
     std::mt19937 gen(rd());  // Standard mersenne_twister_engine seeded with rd()
 
-    std::uniform_int_distribution<> dis(30, 60);  // Define the range
+    std::uniform_int_distribution<> dis(start_random_sec, end_random_sec);  // Define the range
 
     int randomNumber = dis(gen);  // Generate the random number
 
@@ -164,19 +257,7 @@ int rand_number() {
 
     return randomNumber;
 }
-
-
-
-
-
-};
-
-
-//account lock class
-
-
-
-
+//rundom number between start_random , end_random second to anti-bruteforce
 
 
 //anti-d
@@ -186,8 +267,7 @@ bool hasDebuggingVariables() {
     for (int i = 0; environ[i] != nullptr; ++i) {
         std::string envVar(environ[i]);
 
-        // Check for specific debugging variables
-        if (envVar.find("LD_PRELOAD") != std::string::npos ||
+       if (envVar.find("LD_PRELOAD") != std::string::npos ||
             envVar.find("LD_DEBUG") != std::string::npos ||
             envVar.find("LD_AUDIT") != std::string::npos) {
             return true;
@@ -203,31 +283,13 @@ void  handleSIGTRAP(int signal) {
     }
 }
 //anti-d
-//SHA256
-std::string computeSHA256(const std::string& password){ 
-	
-    unsigned char hash[SHA256_DIGEST_LENGTH];
-    SHA256_CTX sha256;
-    SHA256_Init(&sha256);
-    SHA256_Update(&sha256, password.c_str(), password.length());
-    SHA256_Final(hash, &sha256);
 
+};
+ //end of class ***************************************
    
-    std::string hashString;
-    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++)
-    {
-        char hex[3];
-        sprintf(hex, "%02x", hash[i]);
-        hashString += hex;
-    }
-
-    return hashString;
-}
-//SHA256
-
-int main()
+   int main()
 {
-
+/*
 	//check core dump anti-d
     if (prctl(PR_SET_DUMPABLE, 0) == -1) {
         std::cout << "Debugger activity detected." << std::endl;
@@ -240,12 +302,7 @@ int main()
     }
        //check signals for beakpoint 
     signal(SIGTRAP, handleSIGTRAP);
-
-
-
-  //  std::string storedHash = "c810e76f2125db71bfbdd7e29ce902f37f5b2250c48c16d241bd46c70aed1a91"; // hash of the password
-
-    //std::string password;
+*/
 
 
     //main validation with all functions 
@@ -261,17 +318,17 @@ int main()
     std::cout<<"password entered : "<<password <<endl;
 
 
-    std::string inputHash = computeSHA256(password);
+ //   std::string inputHash = computeSHA256(password);
 
     if ( account.locked == false)
     {
 
-    manager.validate_passphrase( "user1",password);
+    manager.validate_passphrase( "user1",password,true,30,60,0,"sha256");
         //std::cout << "Password is correct." << std::endl;
     }
     else
     {
-    manager.validate_passphrase("user1", password);
+    manager.validate_passphrase("user1", password,true,30,60,0,"sha256");
     	//std::cout << "Account locked" << std::endl;
     }
 
@@ -279,3 +336,4 @@ int main()
     }
     return 0;
 }
+
